@@ -2,20 +2,24 @@ const express=require('express');
 const morgan=require('morgan');
 const http=require('http');
 const AllRouters=require('./routers/routers');
+const cors=require('cors');
+const path=require('path');
+const mongoose=require('mongoose');
 
-class Application{
+
+module.exports=class Application{
     #app=express();
     #DB_URL
     #PORT
 
     constructor(port,db_url){
-        this.#PORT=port
-        this.#DB_URL=db_url
-        this.configApplication()
-        this.connectToMongoDB()
-        this.createServer()
-        this.createRoutes()
-        this.errorhandler()
+        this.#PORT=port;
+        this.#DB_URL=db_url;
+        this.configApplication();
+        this.connectToMongoDB();
+        this.createdServer();
+        this.createRoutes();
+        this.errorhandler();
 
     }
     configApplication(){
@@ -53,7 +57,7 @@ class Application{
             
         }
     }
- errorhandler(){
+    errorhandler(){
 
         this.#app.use((req,res,next)=>{
             return res.status(404).json({
@@ -86,6 +90,3 @@ class Application{
 }
 
 
-module.exports={
-    ApplicationClass: new Application()
-}
