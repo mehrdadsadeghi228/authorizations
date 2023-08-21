@@ -1,12 +1,18 @@
+require('dotenv').config();
+
 const Controller = require("./base.Controller");
 const {StatusCodes: HttpStatus} = require("http-status-codes");
 const bcrypt=require('bcrypt');
-const { CheckExistUser, newHashPass, codeERSali } = require("../utils/utils");
+const { CheckExistUser, newHashPass, codeERSali, CreatedJWT, CreatedRefreshJWT, CreatedRefreshIfJWT, checkRefreshToken, checkAccessesToken } = require("../utils/utils");
 const { UserModel } = require("../models/user.model");
-require('dotenv').config();
 const {validationResult}=require('express-validator')
 const  empty = require('is-empty');
 const userModel = require("../models/user.model");
+const JWT=require('jsonwebtoken');
+const KEYTOKEN="6d65687264616473616465676869";
+const KEYREFRESH="6865646e686d6a672c6a632c63686b2c6b6a2c6b6b2c686b2e";
+
+
 
 class UserControllerClass extends Controller{
 
@@ -34,10 +40,16 @@ class UserControllerClass extends Controller{
         const newUser= await UserModel.create({
             userName:userName,name:name,lastName:lastName,mobile:mobile,password:newPass,email:email
         });
+
+        const tokenAccess = CreatedJWT({id:newUser._id,Username:newUser.userName},KEYTOKEN);
+        const RefreshToken=CreatedRefreshJWT({id:newUser._id,Username:newUser.userName},KEYREFRESH)
+
         return res.status(HttpStatus.OK).json({
                 statusCodes:HttpStatus.OK,
                 where:'/UserControllerClass/signupUser',
                 Modified:newUser.isModified,
+                tokenAccess:tokenAccess,
+                RefreshToken:RefreshToken,
                 Data:newUser
             });
        } catch (error) {
@@ -52,6 +64,8 @@ class UserControllerClass extends Controller{
        
     async checkIsModifyAndSendCodeAccount(req,res){
         try {
+
+
             const {id}=req.body;
             const modify=await UserModel.findById(id)
             console.log(modify.isModify);
@@ -92,6 +106,14 @@ class UserControllerClass extends Controller{
     
     async  checkIsModifyAndGetCodeAccount(req,res) {
            try {
+            if(this.CheckAccessToken()){
+                return res.status(HttpStatus.UNAUTHORIZED).json({
+                    statusCodes:HttpStatus.UNAUTHORIZED,
+                    where:'/UserControllerClass/checkIsModifyAndGetCodeAccount',
+                    Modified:false,
+                    message: "Token of "
+                });
+            }
             const {codeOTP , id}=req.body
             const user=await UserModel.findById(id)
             console.log(user);
@@ -117,11 +139,27 @@ class UserControllerClass extends Controller{
                 Modified:false,
                 Error:error
             });
-           }
-
-
-        
+        }
        }
+    
+       async CheckRefreshTokenAndCreatedAccessToken(req,res,next){
+        const {refreshToken ,id}= req.body;
+        const newUser=await UserModel.findById(id);
+        if (refreshToken == null) return res.sendStatus(HttpStatus.UNAUTHORIZED)
+        if (!refreshTokens.includes(refreshToken)) return res.sendStatus(HttpStatus.UNAUTHORIZED)
+       
+        return CreatedRefreshIfJWT(refreshToken,KEYREFRESH,{id:newUser._id,Username:newUser.userName},KEYTOKEN)
+      
+
+
+    }
+    CheckAccessToken(req,res){
+        const authHeader = req.headers['authorization']
+        const token = authHeader && authHeader.split(' ')[1]
+        if (token == null) return res.sendStatus(401)        
+        checkAccessesToken(token,KEYTOKEN)
+        return true
+    }
 
 
 }
